@@ -1,3 +1,687 @@
 <html>
-this is a website
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breadboard Simulator</title>
+    <style>
+        :root {
+            /* Base Colors */
+            --bg-warm-white: #FBFBEE;
+            --window-bg: #FFFFFF;
+            --text-main: #1D1D1F;
+            --text-secondary: #86868B;
+            --line-divider: #E5E5EA;
+            
+            /* Component Colors */
+            --primary-blue: #007AFF;
+            --primary-dark: #005BB5; 
+            --success-green: #34C759;
+            --panel-bg: #F2F2F7;
+            
+            /* Grid & Overlays */
+            --hole-color: rgba(0,0,0,0.06); 
+            --highlight-subtle: rgba(0,0,0,0.04); 
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-warm-white);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* --- Global Container --- */
+        .app-window {
+            width: 100%;
+            max-width: 860px;
+            background-color: var(--window-bg);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        /* --- Header Section --- */
+        .hero-section {
+            position: relative;
+            padding: 80px 40px;
+            text-align: center;
+            border-bottom: 1px solid var(--line-divider);
+            background-image: radial-gradient(circle, var(--hole-color) 1.5px, transparent 2px);
+            background-size: 20px 20px;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            display: inline-block;
+            text-align: center;
+        }
+
+        h1 { 
+            font-size: 28px; 
+            font-weight: 700; 
+            letter-spacing: -0.5px; 
+            margin: 0 0 10px 0; 
+        }
+        
+        p.subtitle { 
+            color: var(--text-secondary); 
+            font-size: 15px; 
+            max-width: 480px; 
+            margin: 0 auto 40px auto; 
+            line-height: 1.5; 
+        }
+
+        /* Interactive Grid Cursor */
+        #breadboard-cursor {
+            position: absolute;
+            width: 18px;
+            height: 98px;
+            background-color: var(--highlight-subtle);
+            border-radius: 9px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease, top 0.1s ease-out, left 0.1s ease-out;
+            transform: translate(-50%, -50%);
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.05);
+        }
+
+        /* --- Installation Guide --- */
+        .install-guide {
+            background-color: var(--panel-bg);
+            padding: 40px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 30px;
+            position: relative;
+            box-shadow: inset 2px 2px 6px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.03);
+            border-top: 1px solid #fff;
+            text-align: left;
+            margin: 0 auto;
+            max-width: 520px;
+        }
+
+        /* Vertical Line connecting steps */
+        .guide-line {
+            position: absolute;
+            left: 54px; 
+            top: 56px;
+            bottom: 56px;
+            width: 4px;
+            background-color: rgba(0,0,0,0.1);
+            border-radius: 2px;
+            z-index: 0;
+            overflow: hidden;
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        /* Active Progress on Line */
+        .guide-progress {
+            position: absolute;
+            left: 0; top: 0; right: 0; 
+            height: 0%; 
+            background-color: var(--success-green);
+            transition: height 0.4s ease;
+        }
+
+        /* Step Rows */
+        .guide-step {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-circle {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            background: #E5E5EA;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.15);
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .step-active-bg {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--success-green);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: 800;
+        }
+
+        .step-text {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-main);
+            line-height: 1.4;
+        }
+
+        /* --- Download Button --- */
+        .download-btn {
+            display: flex;
+            align-items: center;
+            background-color: var(--primary-blue);
+            padding: 12px 24px;
+            border-radius: 12px;
+            text-decoration: none;
+            gap: 16px;
+            position: relative;
+            border-top: 1px solid rgba(255,255,255,0.4);
+            border-bottom: 5px solid var(--primary-dark);
+            border-left: 1px solid rgba(255,255,255,0.1);
+            border-right: 1px solid rgba(0,0,0,0.1);
+            transition: transform 0.1s ease, border-bottom-width 0.1s ease, background-color 0.2s ease;
+        }
+
+        .btn-icon {
+            width: 20px; 
+            height: 30px;
+            background: #D1D1D6;
+            border-radius: 3px;
+            padding: 2px;
+            display: flex; 
+            flex-direction: column;
+        }
+
+        .btn-switch {
+            height: 50%;
+            background: #FFF;
+            border-radius: 1px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .btn-label {
+            color: white; 
+            font-size: 14px; 
+            font-weight: 700;
+            text-transform: uppercase; 
+            letter-spacing: 0.5px;
+        }
+
+        /* Button Interactions */
+        .download-btn:hover .btn-switch { transform: translateY(13px); }
+        .download-btn:active { transform: translateY(4px); border-bottom-width: 1px; }
+
+        /* Download Completed State */
+        .install-guide.is-complete .guide-progress { height: 100%; } 
+        .install-guide.is-complete .step-circle .step-active-bg { opacity: 1; }
+        .install-guide.is-complete .download-btn { background-color: var(--success-green); border-bottom-color: #28a745; }
+        .install-guide.is-complete .download-btn .btn-label { color: #000; }
+
+        /* --- Content Sections --- */
+        .content-section { padding: 40px 60px; }
+        
+        h2 { 
+            font-size: 20px; 
+            color: var(--text-main); 
+            margin-bottom: 20px; 
+            font-weight: 700; 
+            border-bottom: 1px solid var(--line-divider);
+            padding-bottom: 10px;
+        }
+
+        /* --- Features Accordion --- */
+        .features-accordion {
+            width: 100%;
+            background-color: var(--window-bg);
+            border: 1px solid var(--line-divider);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 60px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+        }
+
+        .accordion-item {
+            border-bottom: 1px solid var(--line-divider);
+        }
+
+        .accordion-item:last-child {
+            border-bottom: none;
+        }
+
+        .accordion-header {
+            width: 100%;
+            text-align: left;
+            padding: 16px 20px;
+            background-color: var(--panel-bg);
+            border: none;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+
+        .accordion-header:hover {
+            background-color: #EBEBEF;
+        }
+
+        /* The plus/minus icon */
+        .accordion-header::after {
+            content: '+';
+            font-size: 18px;
+            font-weight: 400;
+            color: var(--text-secondary);
+        }
+
+        .accordion-item.is-open .accordion-header::after {
+            content: '−';
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background-color: var(--window-bg);
+        }
+
+        .accordion-inner {
+            padding: 20px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .accordion-inner strong {
+            color: var(--text-main);
+        }
+
+        .readme-list {
+            margin: 8px 0 16px 0;
+            padding-left: 0;
+            list-style-type: none;
+        }
+        
+        .readme-list li {
+            margin-bottom: 8px;
+        }
+        
+        .readme-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        /* --- Screenshots Gallery --- */
+        .image-gallery {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        .image-container {
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.03);
+            box-shadow: inset 1px 1px 4px rgba(0,0,0,0.05);
+        }
+
+        .screenshot-wrapper {
+            position: relative;
+            width: 100%; 
+            border: 1px solid rgba(0,0,0,0.1);
+            background: #fff; 
+            border-radius: 6px; 
+            cursor: crosshair; 
+        }
+
+        .screenshot-img { 
+            width: 100%; 
+            display: block; 
+            border-radius: 6px;
+        }
+
+        /* Physical Glass Lens */
+        .magnifier-glass {
+            position: absolute;
+            width: 160px; 
+            height: 160px; 
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: 
+                0 8px 24px rgba(0,0,0,0.15), 
+                inset 0 0 20px rgba(0,0,0,0.15), 
+                inset 0 0 2px rgba(255,255,255,0.8);
+            background-color: var(--window-bg);
+            background-repeat: no-repeat; 
+            pointer-events: none; 
+            opacity: 0; 
+            z-index: 10;
+            transition: opacity 0.1s ease;
+        }
+
+        /* Glass curve reflection overlay */
+        .magnifier-glass::after {
+            content: '';
+            position: absolute;
+            top: 5%;
+            left: 10%;
+            width: 80%;
+            height: 40%;
+            border-radius: 50% / 100% 100% 0 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent);
+            pointer-events: none;
+        }
+
+        .image-caption {
+            margin-top: 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            text-align: center;
+            letter-spacing: 0.3px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-window">
+        <div class="hero-section" id="hero-area">
+            <div id="breadboard-cursor"></div>
+            
+            <div class="hero-content">
+                <h1>Breadboard Simulator - MI</h1>
+                <p class="subtitle">A custom fork extended to match our electronics coursework. Includes a function generator, better wires, and new components.</p>
+                
+                <div class="install-guide" id="setup-guide">
+                    <div class="guide-line"><div class="guide-progress"></div></div>
+
+                    <div class="guide-step">
+                        <div class="step-circle">1<div class="step-active-bg">1</div></div>
+                        <a href="https://github.com/Mohamed-Ibrahim-ASU/BreadboardSim/releases/latest/download/BreadboardSim-MI.zip" 
+                           class="download-btn" 
+                           id="main-dl-btn">
+                            <div class="btn-icon"><div class="btn-switch"></div></div>
+                            <span class="btn-label">Download the ZIP file</span>
+                        </a>
+                    </div>
+
+                    <div class="guide-step">
+                        <div class="step-circle">2<div class="step-active-bg">2</div></div>
+                        <span class="step-text">Right-click the file and select <strong>Extract All</strong>.</span>
+                    </div>
+
+                    <div class="guide-step">
+                        <div class="step-circle">3<div class="step-active-bg">3</div></div>
+                        <span class="step-text">Open the extracted folder and run <strong>BreadboardSim.exe</strong>.</span>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            
+            <h2>Additions</h2>
+            
+            <div class="features-accordion">
+                
+                <div class="accordion-item">
+                    <button class="accordion-header">Components</button>
+                    <div class="accordion-content">
+                        <div class="accordion-inner">
+                            <strong>Input Devices - Function Generator</strong>
+                            <ul class="readme-list">
+                                <li>※ The function generator can be used to generate sinusoidal, square, or triangle waves of any frequency and amplitude with a DC offset.</li>
+                                <li>※ Included in the function generator is a "Power-On Transient" Property that allows the circuit to start from 0 and ramp up to the steady state voltage across 5 periods.</li>
+                                <li>※ When using the function generator, make sure the function generator is grounded and the simulation speed is low enough to allow for proper generation of the functions.</li>
+                                <li>※ Ideally 5x the maximum frequency is what I recommend.</li>
+                                <li>※ 10x should be the absolute maximum; any faster and the shape will be significantly distorted.</li>
+                            </ul>
+                            
+                            <strong>New Components</strong><br>
+                            As used in our Electronics Lab:
+                            <ul class="readme-list">
+                                <li>※ Added 1N4007 Diode</li>
+                                <li>※ Added BC639 NPN Transistor</li>
+                                <li>※ Added LM358 OP-AMP</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-header">Probes</button>
+                    <div class="accordion-content">
+                        <div class="accordion-inner">
+                            <strong>Voltage Difference Probes</strong>
+                            <ul class="readme-list">
+                                <li>※ The voltage difference probes consist of a positive and a negative probe to measure the voltage drop between any two nodes on the breadboard and plots it on the graph; the usage is almost identical to the oscilloscope probe currently implemented.</li>
+                            </ul>
+                            
+                            <strong>Current Probe (BETA)</strong>
+                            <ul class="readme-list">
+                                <li>※ The current probe can be used to measure the current going through a lead of most components. Due to SPICE treating wires as nodes, the current probe cannot measure the current flowing through a "wire".</li>
+                                <li>※ To use the current probe, you should place it on an end lead/wire of a component (ie: a resistor). If it doesn't work, try again in another place.</li>
+                            </ul>
+                            
+                            <strong>XY Transfer Probe (BETA)</strong>
+                            <ul class="readme-list">
+                                <li>※ The XY Transfer Probes can be used to plot the Input/Output Characteristics between any two points of voltage on the circuit.</li>
+                                <li>※ To use the XY Transfer Probes, you select the probe, then select the input node, then the output node. Upon running the simulator, the new XY Graph will popup with the Vout/Vin plot.</li>
+                            </ul>
+
+                            <strong>IV Probe</strong>
+                            <ul class="readme-list">
+                                <li>※ The IV Probe can be used to plot the Current/Voltage characteristics of any component in the circuit with respect to the voltages and currents going through it in that specific configuration.</li>
+                                <li>※ To use the IV Probe, just select the probe and place it on one end of the component you want to analyse. Upon running the XY Graph will popup with the IV characteristics of the components.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-header">XY Graph</button>
+                    <div class="accordion-content">
+                        <div class="accordion-inner">
+                            <ul class="readme-list">
+                                <li>※ To make sure the XY and IV Probes are plotted properly, I introduced an XY Graph.</li>
+                                <li>※ Upon first running, the graph may need some time to calibrate and autoscale, make sure your simulation speed is fast enough if you would like to see the overall shape of the graph, or slow it down to see it work in real time.</li>
+                                <li>※ The graph automatically chooses the "best" starting point for the 0A and 0V axes separately to ensure as much information is displayed as possible, so it is normal that they do not line up most times. It may need some getting used to, but it is intentional.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-header">General Improvements</button>
+                    <div class="accordion-content">
+                        <div class="accordion-inner">
+                            <strong>Updated Wires</strong>
+                            <ul class="readme-list">
+                                <li>※ Wires can now be placed diagonally, and the placement of wires should hopefully be easier.</li>
+                            </ul>
+
+                            <strong>Updated Leaded Components</strong>
+                            <ul class="readme-list">
+                                <li>※ Leaded components can also be placed diagonally.</li>
+                            </ul>
+
+                            <strong>Updated Capacitors</strong>
+                            <ul class="readme-list">
+                                <li>※ Capacitors now have leads and as such also can be placed between any two nodes, not just two adjacent nodes.</li>
+                                <li>※ Capacitors now have an Initial Voltage Property to allow for the functioning of circuits like astable multivibrators.</li>
+                                <li>※ Setting the initial voltage to 0 will let the simulator skip the "transient" stage and apply the proper DC voltage on the capacitor automatically.</li>
+                                <li>※ If you want to start the simulation with 0V, set the capacitor voltage to 1pV.</li>
+                            </ul>
+
+                            <strong>Hover Tooltips</strong>
+                            <ul class="readme-list">
+                                <li>※ Hover over any component on the breadboard during simulation to see the current/voltage as well as a summarized tooltip for ICs and other multi-pin components.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-header">Updated Graph & Tools</button>
+                    <div class="accordion-content">
+                        <div class="accordion-inner">
+                            <strong>Updated Graph</strong>
+                            <ul class="readme-list">
+                                <li>Always on top Graph option [📌 Pin]</li>
+                                <li>Scroll to move offset</li>
+                                <li>Ctrl Scroll to change time scale</li>
+                                <li>Shift Scroll to change current scale</li>
+                                <li>Shift Ctrl Scroll to change Voltage scale</li>
+                                <li>Performance Improvements (hopefully)</li>
+                            </ul>
+
+                            <strong>Advanced Graph Tools:</strong>
+                            <ul class="readme-list">
+                                <li><strong>Hover Cursor</strong><br>※ Live crosshair that shows the exact reading on the graph.</li>
+                                <li><strong>Measurement Cursors</strong><br>※ Place two cursors on the graph to measure the minimum, maximum, peak-to-peak voltages/currents.</li>
+                                <li><strong>Split Graphs:</strong><br>Combined Graphs | Domain Split (V/I) | Per Probe Split</li>
+                                <li><strong>Edge-Triggered Graph (Stable Graphs)</strong></li>
+                                <li><strong>Export graph CSV</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <h2>Screenshots</h2>
+            
+            <div class="image-gallery">
+                
+                <div class="image-container">
+                    <div class="screenshot-wrapper">
+                        <div class="magnifier-glass"></div>
+                        <img src="https://mohamed-ibrahim-asu.github.io/bbsim/BreadBoardSim1.png" alt="Breadboard GUI 1" class="screenshot-img">
+                    </div>
+                    <div class="image-caption">CE with Degeneration Breadboard with Function Generator Screenshot</div>
+                </div>
+
+                <div class="image-container">
+                    <div class="screenshot-wrapper">
+                        <div class="magnifier-glass"></div>
+                        <img src="https://mohamed-ibrahim-asu.github.io/bbsim/BreadBoardSim2.png" alt="Breadboard GUI 2" class="screenshot-img">
+                    </div>
+                    <div class="image-caption">CE with Degeneration and bypass capacitor Breadboard with Function Generator Screenshot</div>
+                </div>
+
+                <div class="image-container">
+                    <div class="screenshot-wrapper">
+                        <div class="magnifier-glass"></div>
+                        <img src="https://mohamed-ibrahim-asu.github.io/bbsim/BreadBoardSim3.png" alt="Breadboard GUI 3" class="screenshot-img">
+                    </div>
+                    <div class="image-caption">Simple LPF and Simple Diode Limiter circuit Breadboard showing the XY/IV Characteristics</div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        const dlBtn = document.getElementById('main-dl-btn');
+        const setupGuide = document.getElementById('setup-guide');
+
+        dlBtn.addEventListener('click', () => { 
+            dlBtn.querySelector('.btn-label').innerText = "Starting...";
+            
+            setTimeout(() => { 
+                setupGuide.classList.add('is-complete'); 
+                dlBtn.querySelector('.btn-label').innerText = "Check Downloads"; 
+            }, 1000); 
+        });
+
+
+        const heroArea = document.getElementById('hero-area');
+        const boardCursor = document.getElementById('breadboard-cursor');
+        
+        heroArea.addEventListener('mousemove', (e) => {
+            const rect = heroArea.getBoundingClientRect();
+            const snappedX = Math.round((e.clientX - rect.left) / 20) * 20;
+            const snappedY = Math.round((e.clientY - rect.top) / 20) * 20;
+            boardCursor.style.left = `${snappedX}px`;
+            boardCursor.style.top = `${snappedY}px`;
+            boardCursor.style.opacity = '1';
+        });
+        
+        heroArea.addEventListener('mouseleave', () => { 
+            boardCursor.style.opacity = '0'; 
+        });
+
+
+        const accordionHeaders = document.querySelectorAll('.accordion-header');
+        
+        accordionHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const item = header.parentElement;
+                const content = item.querySelector('.accordion-content');
+                const isOpen = item.classList.contains('is-open');
+
+
+                document.querySelectorAll('.accordion-item').forEach(otherItem => {
+                    otherItem.classList.remove('is-open');
+                    otherItem.querySelector('.accordion-content').style.maxHeight = null;
+                });
+
+
+                if (!isOpen) {
+                    item.classList.add('is-open');
+                    content.style.maxHeight = content.scrollHeight + "px";
+                }
+            });
+        });
+
+
+        const wrappers = document.querySelectorAll('.screenshot-wrapper');
+        
+        wrappers.forEach(wrapper => {
+            const img = wrapper.querySelector('.screenshot-img');
+            const glass = wrapper.querySelector('.magnifier-glass');
+            
+            wrapper.addEventListener('mousemove', (e) => {
+                const rect = wrapper.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                glass.style.opacity = '1';
+                glass.style.left = `${x - 80}px`; 
+                glass.style.top = `${y - 80}px`;
+                
+
+                const bgX = 80 - (x * 2);
+                const bgY = 80 - (y * 2);
+                
+                glass.style.backgroundImage = `url('${img.src}')`;
+                glass.style.backgroundSize = `${img.width * 2}px ${img.height * 2}px`;
+                glass.style.backgroundPosition = `${bgX}px ${bgY}px`;
+            });
+            
+            wrapper.addEventListener('mouseleave', () => { 
+                glass.style.opacity = '0'; 
+            });
+        });
+    </script>
+</body>
 </html>
